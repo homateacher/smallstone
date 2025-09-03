@@ -4,66 +4,71 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>오늘 그릴 그림은? | 조약돌 마을</title>
-  <!-- Tailwind CDN (no build) -->
+  <!-- Tailwind CDN (무빌드) -->
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
+    /* 3D 카드 뒤집기 */
     .scene { perspective: 1200px; }
     .card { transform-style: preserve-3d; transition: transform .8s cubic-bezier(.2,.8,.2,1); }
     .card.is-flipped { transform: rotateY(180deg); }
     .card-face { backface-visibility: hidden; }
     .card-back { transform: rotateY(180deg); }
+    /* 보이지 않는 면 완전 숨김(검은 화면 이슈 방지) */
+    .hidden-face { opacity: 0; pointer-events: none; }
+    .visible-face { opacity: 1; pointer-events: auto; }
+    /* 토글 */
     .toggle { width: 44px; height: 24px; border-radius: 9999px; padding: 2px; }
     .toggle-dot { width: 20px; height: 20px; border-radius: 9999px; background: white; box-shadow: 0 1px 3px rgba(0,0,0,.3); transition: transform .2s; }
-    .toast-enter { transform: translateY(-8px); opacity: 0; }
-    .toast-enter-active { transform: translateY(0); opacity: 1; transition: .2s; }
-    .toast-exit-active { transform: translateY(-8px); opacity: 0; transition: .2s; }
   </style>
 </head>
 <body class="min-h-screen w-full bg-gradient-to-br from-[#0f172a] via-[#111827] to-[#1f2937] text-white flex items-center justify-center p-4">
   <div id="app" class="w-full max-w-lg"></div>
 
   <script>
-    const CATEGORIES = ["대화","감정","상황"];
+    /* -------- 데이터 -------- */
+    const CATEGORIES = ["대화", "감정", "상황"];
     const SITUATIONS = [
-      { id:1,title:"축하하는 대화 상황",category:"대화",examples:["케이크","폭죽","꽃가루","파티모자","'축하해!' 말풍선"] },
-      { id:2,title:"위로해주는 대화 상황",category:"대화",examples:["토닥토닥 손","따뜻한 담요","티슈","하트 핫팩","'괜찮아' 말풍선"] },
-      { id:3,title:"상담해주는 대화 상황",category:"대화",examples:["노트와 펜","헤드셋","상담소 간판","체크리스트","생각 구름"] },
-      { id:4,title:"잔소리하는 상황",category:"대화",examples:["허리에 손","손가락 짚기","호루라기","경고 표지","찌릿 눈썹"] },
-      { id:5,title:"애교부리는 상황",category:"감정",examples:["반짝눈","하트 뿅","브이 포즈","볼 콕","달콤 말풍선"] },
-      { id:6,title:"웃는 상황",category:"감정",examples:["눈웃음","박장대소","'ㅋㅋ' 말풍선","웃음 눈물","하이파이브"] },
-      { id:7,title:"우는 상황",category:"감정",examples:["뚝뚝 눈물","울먹 말풍선","휴지","콧물 방울","빗방울 배경"] },
-      { id:8,title:"슬퍼하는 상황",category:"감정",examples:["고개 푹","비구름","회색 배경","작아진 자세","한숨 말풍선"] },
-      { id:9,title:"멋쩍어하는 상황(민망)",category:"감정",examples:["뒷머리 긁적","식은땀","볼 발그레","시선 회피","머쓱 표정"] },
-      { id:10,title:"부탁하는 상황",category:"대화",examples:["합장 손","반짝 눈빛","'제발~' 말풍선","리본 상자","고개 끄덕"] },
-      { id:11,title:"감사하는 상황",category:"대화",examples:["꾸벅 인사","감사 카드","선물 상자","'고마워' 말풍선","꽃다발"] },
-      { id:12,title:"마무리 인사하는 상황",category:"대화",examples:["손 흔들기","잘자 모자","문 닫힘","별·달 배경","'안녕~' 말풍선"] },
-      { id:13,title:"화내는 상황 (버럭)",category:"감정",examples:["불꽃 눈썹","증기 분출","분노 게이지","빨간 배경","번개 이펙트"] },
-      { id:14,title:"놀라는 상황 (헉!)",category:"감정",examples:["동그란 눈","감탄 부호!","점프","머리 곤두섬","'헉' 말풍선"] },
-      { id:15,title:"사랑 고백/애정 표현",category:"대화",examples:["하트 눈","쪽! 키스","꽃다발","러브 레터","하트 배경"] },
-      { id:16,title:"심심할 때",category:"상황",examples:["하품","탁상시계","볼 긁적","심드렁 표정","틈새 낙서"] },
-      { id:17,title:"피곤하거나 지친 상황",category:"상황",examples:["다크서클","커피","눈 반쯤 감김","기지개","zzz 말풍선"] },
-      { id:18,title:"득의양양/자랑하는 상황",category:"감정",examples:["선글라스","엄지척","트로피","반짝 효과","자신만만 포즈"] },
-      { id:19,title:"장난치는 상황",category:"상황",examples:["메롱","깜짝 상자","장난 종","몰카 카메라","장난 스티커"] },
-      { id:20,title:"기다리는 상황 (언제 와?)",category:"상황",examples:["모래시계","시계 응시","문 쳐다봄","발 동동","'언제와?' 말풍선"] },
-      { id:21,title:"고민하는 상황 (흠…)",category:"감정",examples:["턱 괴기","물음표","미로","방울땀","저울 아이콘"] },
-      { id:22,title:"도망가거나 회피하는 상황",category:"상황",examples:["먼지 구름","식은땀","숨기","뒤돌아 도망","벽 뒤 훔쳐보기"] },
-      { id:23,title:"사과하는 상황",category:"대화",examples:["두 손 모아 사과","사과 카드","'미안해' 말풍선","고개 숙임","작아진 캐릭터"] },
-      { id:24,title:"공감/맞장구 치는 상황",category:"대화",examples:["끄덕끄덕","'ㅇㅇ' 말풍선","손뼉 척","싱긋 미소","동그라미 표시"] },
-      { id:25,title:"약속/시간 잡는 상황",category:"대화",examples:["달력","시계","체크 아이콘","메신저 말풍선","약속 도장"] },
-      { id:26,title:"응원/파이팅 하는 상황",category:"대화",examples:["응원봉/메가폰","'파이팅!' 말풍선","근육 포즈","깃발","불꽃 효과"] },
-      { id:27,title:"칭찬하는 상황",category:"대화",examples:["별 스티커","칭찬 도장","왕관","엄지척","'최고!' 말풍선"] },
-      { id:28,title:"배고픈 상황",category:"상황",examples:["꼬르륵 말풍선","수저 포크","김나는 음식","침 방울","빈 접시"] },
-      { id:29,title:"지각하는 상황",category:"상황",examples:["알람 시계 폭발","헐레벌떡 달리기","땀방울","넘어진 운동화","'지각!' 말풍선"] },
-      { id:30,title:"선물하는 상황",category:"대화",examples:["리본 상자","카드","하트 태그","전달 제스처","서프라이즈 폭죽"] },
-      { id:31,title:"눈치 보는 상황",category:"감정",examples:["힐끔 시선","점점점 말풍선","식은땀 한 방울","작아지기 포즈","커튼 뒤 힐끔"] },
-      { id:32,title:"비밀/쉿 상황",category:"대화",examples:["입에 손가락 쉿","지퍼 입","자물쇠 아이콘","작은 말풍선","어두운 배경"] }
+      { id:1, title:"축하하는 대화 상황", category:"대화", examples:["케이크","폭죽","꽃가루","파티모자","'축하해!' 말풍선"] },
+      { id:2, title:"위로해주는 대화 상황", category:"대화", examples:["토닥토닥 손","따뜻한 담요","티슈","하트 핫팩","'괜찮아' 말풍선"] },
+      { id:3, title:"상담해주는 대화 상황", category:"대화", examples:["노트와 펜","헤드셋","상담소 간판","체크리스트","생각 구름"] },
+      { id:4, title:"잔소리하는 상황", category:"대화", examples:["허리에 손","손가락 짚기","호루라기","경고 표지","찌릿 눈썹"] },
+      { id:5, title:"애교부리는 상황", category:"감정", examples:["반짝눈","하트 뿅","브이 포즈","볼 콕","달콤 말풍선"] },
+      { id:6, title:"웃는 상황", category:"감정", examples:["눈웃음","박장대소","'ㅋㅋ' 말풍선","웃음 눈물","하이파이브"] },
+      { id:7, title:"우는 상황", category:"감정", examples:["뚝뚝 눈물","울먹 말풍선","휴지","콧물 방울","빗방울 배경"] },
+      { id:8, title:"슬퍼하는 상황", category:"감정", examples:["고개 푹","비구름","회색 배경","작아진 자세","한숨 말풍선"] },
+      { id:9, title:"멋쩍어하는 상황(민망)", category:"감정", examples:["뒷머리 긁적","식은땀","볼 발그레","시선 회피","머쓱 표정"] },
+      { id:10, title:"부탁하는 상황", category:"대화", examples:["합장 손","반짝 눈빛","'제발~' 말풍선","리본 상자","고개 끄덕"] },
+      { id:11, title:"감사하는 상황", category:"대화", examples:["꾸벅 인사","감사 카드","선물 상자","'고마워' 말풍선","꽃다발"] },
+      { id:12, title:"마무리 인사하는 상황", category:"대화", examples:["손 흔들기","잘자 모자","문 닫힘","별·달 배경","'안녕~' 말풍선"] },
+      { id:13, title:"화내는 상황 (버럭)", category:"감정", examples:["불꽃 눈썹","증기 분출","분노 게이지","빨간 배경","번개 이펙트"] },
+      { id:14, title:"놀라는 상황 (헉!)", category:"감정", examples:["동그란 눈","감탄 부호!","점프","머리 곤두섬","'헉' 말풍선"] },
+      { id:15, title:"사랑 고백/애정 표현", category:"대화", examples:["하트 눈","쪽! 키스","꽃다발","러브 레터","하트 배경"] },
+      { id:16, title:"심심할 때", category:"상황", examples:["하품","탁상시계","볼 긁적","심드렁 표정","틈새 낙서"] },
+      { id:17, title:"피곤하거나 지친 상황", category:"상황", examples:["다크서클","커피","눈 반쯤 감김","기지개","zzz 말풍선"] },
+      { id:18, title:"득의양양/자랑하는 상황", category:"감정", examples:["선글라스","엄지척","트로피","반짝 효과","자신만만 포즈"] },
+      { id:19, title:"장난치는 상황", category:"상황", examples:["메롱","깜짝 상자","장난 종","몰카 카메라","장난 스티커"] },
+      { id:20, title:"기다리는 상황 (언제 와?)", category:"상황", examples:["모래시계","시계 응시","문 쳐다봄","발 동동","'언제와?' 말풍선"] },
+      { id:21, title:"고민하는 상황 (흠…)", category:"감정", examples:["턱 괴기","물음표","미로","방울땀","저울 아이콘"] },
+      { id:22, title:"도망가거나 회피하는 상황", category:"상황", examples:["먼지 구름","식은땀","숨기","뒤돌아 도망","벽 뒤 훔쳐보기"] },
+      { id:23, title:"사과하는 상황", category:"대화", examples:["두 손 모아 사과","사과 카드","'미안해' 말풍선","고개 숙임","작아진 캐릭터"] },
+      { id:24, title:"공감/맞장구 치는 상황", category:"대화", examples:["끄덕끄덕","'ㅇㅇ' 말풍선","손뼉 척","싱긋 미소","동그라미 표시"] },
+      { id:25, title:"약속/시간 잡는 상황", category:"대화", examples:["달력","시계","체크 아이콘","메신저 말풍선","약속 도장"] },
+      { id:26, title:"응원/파이팅 하는 상황", category:"대화", examples:["응원봉/메가폰","'파이팅!' 말풍선","근육 포즈","깃발","불꽃 효과"] },
+      { id:27, title:"칭찬하는 상황", category:"대화", examples:["별 스티커","칭찬 도장","왕관","엄지척","'최고!' 말풍선"] },
+      { id:28, title:"배고픈 상황", category:"상황", examples:["꼬르륵 말풍선","수저 포크","김나는 음식","침 방울","빈 접시"] },
+      { id:29, title:"지각하는 상황", category:"상황", examples:["알람 시계 폭발","헐레벌떡 달리기","땀방울","넘어진 운동화","'지각!' 말풍선"] },
+      { id:30, title:"선물하는 상황", category:"대화", examples:["리본 상자","카드","하트 태그","전달 제스처","서프라이즈 폭죽"] },
+      { id:31, title:"눈치 보는 상황", category:"감정", examples:["힐끔 시선","점점점 말풍선","식은땀 한 방울","작아지기 포즈","커튼 뒤 힐끔"] },
+      { id:32, title:"비밀/쉿 상황", category:"대화", examples:["입에 손가락 쉿","지퍼 입","자물쇠 아이콘","작은 말풍선","어두운 배경"] }
     ];
 
+    /* -------- 저장소 -------- */
     const storage = {
       get(k,f){ try{const r=localStorage.getItem(k); return r?JSON.parse(r):f;}catch(e){return f;} },
       set(k,v){ try{localStorage.setItem(k, JSON.stringify(v));}catch(e){} }
     };
 
+    /* -------- 상태 -------- */
     let flipped=false, current=null;
     let usedIds=storage.get("emojiIdea.usedIds",[]);
     let favorites=storage.get("emojiIdea.favs",[]);
@@ -72,35 +77,23 @@
     let history=storage.get("emojiIdea.history",[]);
 
     const $ = s => document.querySelector(s);
-    function toast(msg){
+    const toast = (msg)=>{
       const el=document.createElement('div');
       el.className='fixed top-4 left-1/2 -translate-x-1/2 z-50 rounded-full bg-white text-black px-4 py-2 shadow-lg text-sm';
       el.textContent=msg; document.body.appendChild(el);
       setTimeout(()=>el.remove(),1600);
-    }
-    function save(){
+    };
+    const save = ()=>{
       storage.set("emojiIdea.usedIds",usedIds);
       storage.set("emojiIdea.favs",favorites);
       storage.set("emojiIdea.avoidRepeats",avoidRepeats);
       storage.set("emojiIdea.activeCats",activeCats);
       storage.set("emojiIdea.history",history);
-    }
+    };
 
-    function pool(){
-      const list=SITUATIONS.filter(s=>activeCats.includes(s.category));
-      return avoidRepeats? list.filter(s=>!usedIds.includes(s.id)) : list;
-    }
-    function drawNew(){
-      let p=pool();
-      if(p.length===0 && avoidRepeats){ usedIds=[]; toast('모든 주제를 소진했어요! 목록을 초기화합니다.'); p=pool(); }
-      const next=p[Math.floor(Math.random()*p.length)];
-      current=next.id; usedIds=Array.from(new Set([...usedIds,next.id]));
-      history=[{id:next.id,t:Date.now()}, ...history].slice(0,30);
-      save(); render(false);
-    }
-
-    function render(keepFlip=true){
-      const currentObj=SITUATIONS.find(s=>s.id===current) || null;
+    /* -------- 렌더 -------- */
+    function render(){
+      const currentObj=SITUATIONS.find(s=>s.id===current)||null;
       const remaining=SITUATIONS.filter(s=>activeCats.includes(s.category) && (!avoidRepeats || !usedIds.includes(s.id))).length;
 
       $('#app').innerHTML = `
@@ -117,8 +110,9 @@
           </header>
 
           <div class="scene relative">
-            <div id="card" class="card relative h-64 sm:h-72 w-full ${flipped?'is-flipped':''}">
-              <div class="card-face absolute inset-0 rounded-3xl shadow-2xl overflow-hidden border border-emerald-300/25 ${flipped? 'opacity-0':'opacity-100'} transition-opacity">
+            <div id="card" class="card relative h-64 sm:h-72 w-full">
+              <!-- 앞면 -->
+              <div class="card-face front absolute inset-0 rounded-3xl shadow-2xl overflow-hidden border border-emerald-300/25">
                 <div class="h-full w-full bg-gradient-to-br from-[#cfe8b6] via-[#b9d8a2] to-[#9dc58a] relative">
                   <div class="absolute inset-0" style="background:
                     radial-gradient(circle at 25% 20%, rgba(255,255,255,.45), transparent 45%),
@@ -129,6 +123,7 @@
                   </div>
                 </div>
               </div>
+              <!-- 뒷면 -->
               <div class="card-face card-back absolute inset-0 rounded-3xl shadow-2xl overflow-hidden border border-white/10">
                 <div class="h-full w-full bg-gradient-to-b from-slate-900/70 to-slate-800/60 backdrop-blur-sm">
                   <div class="h-full w-full flex flex-col items-center justify-center p-6 text-center">
@@ -165,19 +160,68 @@
         </div>
       `;
 
+      // 이벤트 바인딩
       document.getElementById('btn-flip').onclick = () => {
         if (current===null){ drawNew(); flipped=true; }
         else { flipped=!flipped; }
-        document.getElementById('card').classList.toggle('is-flipped', flipped);
+        updateFaces();
       };
-      document.getElementById('btn-new').onclick = () => { drawNew(); flipped=false; document.getElementById('card').classList.remove('is-flipped'); };
-      document.getElementById('btn-copy').onclick = async () => { const text = current ? `오늘의 이모티콘 주제: ${SITUATIONS.find(s=>s.id===current).title}` : '오늘 그릴 그림은?'; try{ await navigator.clipboard.writeText(text); toast('복사했어요!'); }catch{ toast('복사 실패'); } };
-      document.getElementById('btn-fav').onclick = () => { if(!current) return; const i=favorites.indexOf(current); if(i>-1) favorites.splice(i,1); else favorites.push(current); save(); render(); };
+      document.getElementById('btn-new').onclick = () => {
+        drawNew();
+        flipped=false;  // 새 카드는 앞면
+        updateFaces();
+      };
+      document.getElementById('btn-copy').onclick = async () => {
+        const text = current ? `오늘의 이모티콘 주제: ${SITUATIONS.find(s=>s.id===current).title}` : '오늘 그릴 그림은?';
+        try{ await navigator.clipboard.writeText(text); toast('복사했어요!'); }catch{ toast('복사 실패'); }
+      };
+      document.getElementById('btn-fav').onclick = () => {
+        if(!current) return;
+        const i=favorites.indexOf(current);
+        if(i>-1) favorites.splice(i,1); else favorites.push(current);
+        save(); render(); updateFaces();
+      };
       document.getElementById('btn-open-history').onclick = openHistory;
       document.getElementById('btn-history').onclick = openHistory;
-      document.getElementById('btn-settings').onclick = openSettings;
+
+      // 렌더 직후 가시성 싱크
+      updateFaces();
     }
 
+    /* 보이는/숨김 면 동기화 (검은 화면 해결 핵심) */
+    function updateFaces(){
+      const card = document.getElementById('card');
+      if(!card) return;
+      const front = card.querySelector('.front');
+      const back  = card.querySelector('.card-back');
+      card.classList.toggle('is-flipped', flipped);
+      if(front && back){
+        front.classList.toggle('visible-face', !flipped);
+        front.classList.toggle('hidden-face',  flipped);
+        back.classList .toggle('visible-face',  flipped);
+        back.classList .toggle('hidden-face',  !flipped);
+      }
+    }
+
+    /* 추천 로직 */
+    function pool(){
+      const list=SITUATIONS.filter(s=> activeCats.includes(s.category));
+      return avoidRepeats ? list.filter(s=> !usedIds.includes(s.id)) : list;
+    }
+    function drawNew(){
+      let p=pool();
+      if (p.length===0 && avoidRepeats){
+        usedIds=[]; toast('모든 주제를 소진했어요! 목록을 초기화합니다.');
+        p=pool();
+      }
+      const next=p[Math.floor(Math.random()*p.length)];
+      current=next.id;
+      usedIds=Array.from(new Set([...usedIds, next.id]));
+      history=[{id:next.id,t:Date.now()}, ...history].slice(0,30);
+      save();
+    }
+
+    /* 설정/히스토리 모달 */
     function openSettings(){
       const wrap=document.createElement('div');
       wrap.className='fixed inset-0 z-50 flex items-center justify-center';
@@ -256,10 +300,11 @@
       document.body.appendChild(wrap);
       wrap.querySelector('#close').onclick=()=> wrap.remove();
       wrap.querySelectorAll('[data-copy]').forEach(btn=> btn.onclick = async (e)=>{ const val=e.currentTarget.getAttribute('data-copy'); try{ await navigator.clipboard.writeText(val); toast('복사했어요'); }catch{ toast('복사 실패'); } });
-      wrap.querySelectorAll('[data-view]').forEach(btn=> btn.onclick = (e)=>{ const id=Number(e.currentTarget.getAttribute('data-view')); current=id; flipped=true; save(); render(); wrap.remove(); });
+      wrap.querySelectorAll('[data-view]').forEach(btn=> btn.onclick = (e)=>{ const id=Number(e.currentTarget.getAttribute('data-view')); current=id; flipped=true; save(); render(); updateFaces(); wrap.remove(); });
     }
 
-    render(); // init
+    // 초기 렌더
+    render();
   </script>
 </body>
 </html>
